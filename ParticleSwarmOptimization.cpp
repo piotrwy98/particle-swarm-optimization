@@ -130,7 +130,9 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s, int threads)
                     // update prędkości danej próbki per wymiar
                     // v_id(k+1) = w * v_id(k) + c1 * rand_1 * (p_best_id - x_id) + c2 * rand2 * (g_best_d - x_id)
                     
-                    particles[particle].velocity[dimension] = w * particles[particle].velocity[dimension] + c1 * rand_1 * (particles[i].best_value - particles[particle].position[dimension]) + c2 * rand_2 * (best_general_value - particles[particle].position[dimension]);
+                    particles[particle].velocity[dimension] = w * particles[particle].velocity[dimension] + 
+                        c1 * rand_1 * (particles[i].best_value - particles[particle].position[dimension]) + 
+                        c2 * rand_2 * (best_general_value - particles[particle].position[dimension]);
                     
                     // update pozycji danej próbki per wymiar
                     // x_id(k+1) = x_id(k) + v_id(k+1)
@@ -223,7 +225,9 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s, int threads)
                     double rand_1 = ((double)rand() / (double)RAND_MAX);
                     double rand_2 = ((double)rand() / (double)RAND_MAX);
 
-                    particles[particle].velocity[dimension] = w * particles[particle].velocity[dimension] + c1 * rand_1 * (particles[i].best_value - particles[particle].position[dimension]) + c2 * rand_2 * (best_general_value - particles[particle].position[dimension]);
+                    particles[particle].velocity[dimension] = w * particles[particle].velocity[dimension] + 
+                        c1 * rand_1 * (particles[i].best_value - particles[particle].position[dimension]) +
+                        c2 * rand_2 * (best_general_value - particles[particle].position[dimension]);
                     particles[particle].position[dimension] += particles[particle].velocity[dimension];
                 }
             }
