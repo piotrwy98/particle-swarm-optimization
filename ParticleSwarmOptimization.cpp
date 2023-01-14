@@ -3,6 +3,7 @@
 #include <iostream>
 #include <omp.h>
 #include <math.h>
+#include <iomanip>
 
 using namespace std;
 
@@ -56,14 +57,12 @@ double ackley(double positions[], int n)
         exp(1.0 / n * secondPart) + 20.0 + DBL_EPSILON;
 }
 
-void pso(int d, int m, int c1, int c2, int v, int i, int s)
+void pso(int d, int m, int c1, int c2, int v, int i, int s, int threads)
 {
     double start = omp_get_wtime();
     double w = 0.5;
 
     #if SERIAL
-        cout << "pso_serial" << endl;
-
         // do przetrzymywania pozycji per próbka potrzebujemy listy list
         // długość zewnętrznej listy = ilość cząstek m
         Particle* particles = new Particle[m];
@@ -169,18 +168,75 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s)
             k++;
         }
         while (k <= i);
-
     #endif
 
     #if PARALLEL
-        cout << "pso_parallel" << endl;
-        omp_set_num_threads(d);
+        omp_set_num_threads(threads);
+
+        Particle* particles = new Particle[m];
+        double best_general_value = DBL_MAX;
+        double* best_general_position = new double[d];
+
+        #pragma omp parallel for
+        for (int particle = 0; particle < m; particle++)
+        {
+            particles[particle].position = new double[d];
+            particles[particle].velocity = new double[d];
+
+            #pragma omp parallel for
+            for (int dimension = 0; dimension < d; dimension++)
+            {
+                particles[particle].position[dimension] = (UPPER_BOUND - LOWER_BOUND) * ((double)rand() / (double)RAND_MAX) + LOWER_BOUND;
+                particles[particle].velocity[dimension] = v * ((double)rand() / (double)RAND_MAX);
+            }
+        }
+
+        int k = 1;
+
+        // czy tutaj też omp? jest jakaś dyrektywa do WHILE czy należy zamienić na FOR?
+        do
+        {
+            #pragma omp parallel for
+            for (int particle = 0; particle < m; particle++)
+            {
+                double value = ackley(particles[particle].position, d);
+
+                if (value < particles[particle].best_value)
+                {
+                    particles[particle].best_value = value;
+                    particles[particle].best_position = particles[particle].position;
+
+                    if (value < best_general_value)
+                    {
+                        best_general_value = value;
+                        best_general_position = particles[particle].position;
+                    }
+                }
+            }
+
+            #pragma omp parallel for
+            for (int particle = 0; particle < m; particle++)
+            {
+                #pragma omp parallel for
+                for (int dimension = 0; dimension < d; dimension++)
+                {
+                    double rand_1 = ((double)rand() / (double)RAND_MAX);
+                    double rand_2 = ((double)rand() / (double)RAND_MAX);
+
+                    particles[particle].velocity[dimension] = w * particles[particle].velocity[dimension] + c1 * rand_1 * (particles[i].best_value - particles[particle].position[dimension]) + c2 * rand_2 * (best_general_value - particles[particle].position[dimension]);
+                    particles[particle].position[dimension] += particles[particle].velocity[dimension];
+                }
+            }
+
+            k++;
+        }
+        while (k <= i);
     #endif
 
     double end = omp_get_wtime();
-    cout << "# " << end - start << endl;
-    cout << "VALUE: " << best_general_value << endl;
-    cout << "POSITION: (";
+    cout << "# TIME:     " << fixed << setprecision(15) << end - start << endl;
+    cout << "  VALUE:    " << best_general_value << endl;
+    cout << "  POSITION: (";
 
     for (int dimension = 0; dimension < d; dimension++)
     {
@@ -201,6 +257,7 @@ int main(int argc, char* argv[])
     int v = get_cmd_option(argv, argv + argc, "-V", 60);
     int i = get_cmd_option(argv, argv + argc, "-i", 1);
     int s = get_cmd_option(argv, argv + argc, "-s", 1);
+    int threads = get_cmd_option(argv, argv + argc, "-t", 6);
 
-    pso(d, m, c1, c2, v, i, s);
+    pso(d, m, c1, c2, v, i, s, threads);
 }
