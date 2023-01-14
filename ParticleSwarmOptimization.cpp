@@ -7,7 +7,7 @@
 using namespace std;
 
 double LOWER_BOUND = -32.768;
-double UPPER_BOUND = 32.768f;
+double UPPER_BOUND = 32.768;
 
 struct Particle
 {
@@ -17,7 +17,7 @@ struct Particle
     double* velocity;
 };
 
-int getCmdOption(char** begin, char** end, const string& option, int defaultValue)
+int get_cmd_option(char** begin, char** end, const string& option, int defaultValue)
 {
     char** itr = find(begin, end, option);
 
@@ -32,20 +32,28 @@ int getCmdOption(char** begin, char** end, const string& option, int defaultValu
 
 double ackley(double positions[], int n)
 {
-    double firstLoopResult = 0.0;
-    for (int i = 0; i < n; i++)
-    {
-        firstLoopResult += positions[i] * positions[i];
-    }
+    double firstPart = 0.0;
+    double secondPart = 0.0;
 
-    double secondLoopResult = 0.0;
-    for (int i = 0; i < n; i++)
-    {
-        secondLoopResult += cos(2 * M_PI * positions[i]);
-    }
+    #if SERIAL
+        for (int i = 0; i < n; i++)
+        {
+            firstPart += positions[i] * positions[i];
+            secondPart += cos(2 * M_PI * positions[i]);
+        }
+    #endif
 
-    return -20 * exp(-0.2 * sqrt(1 / n * firstLoopResult)) - 
-        exp(1 / n * secondLoopResult) + 20 + DBL_EPSILON;
+    #if PARALLEL
+        #pragma omp parallel for reduction(+:firstLoopResult, secondLoopResult)
+        for (int i = 0; i < n; i++)
+        {
+            firstPart += positions[i] * positions[i];
+            secondPart += cos(2 * M_PI * positions[i]);
+        }
+    #endif
+
+    return -20.0 * exp(-0.2 * sqrt(1.0 / n * firstPart)) - 
+        exp(1.0 / n * secondPart) + 20.0 + DBL_EPSILON;
 }
 
 void pso(int d, int m, int c1, int c2, int v, int i, int s)
@@ -80,13 +88,13 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s)
             particles[particle].position = new double[d];
             particles[particle].velocity = new double[d];
 
-            for (int jj = 0; jj < d; jj++)
+            for (int dimension = 0; dimension < d; dimension++)
             {
                 // initialize position x_id randomly within permissible range
-                particles[particle].position[jj] = (UPPER_BOUND - LOWER_BOUND) * ((double) rand() / (double) RAND_MAX) + LOWER_BOUND;
+                particles[particle].position[dimension] = (UPPER_BOUND - LOWER_BOUND) * ((double) rand() / (double) RAND_MAX) + LOWER_BOUND;
 
                 // initialize velocity v_id randomly within permissible range
-                particles[particle].velocity[jj] = v * ((double)rand() / (double)RAND_MAX);
+                particles[particle].velocity[dimension] = v * ((double) rand() / (double) RAND_MAX);
             }
         }
 
@@ -186,13 +194,13 @@ int main(int argc, char* argv[])
 {
     srand(time(0));
 
-    int d = getCmdOption(argv, argv + argc, "-D", 2);
-    int m = getCmdOption(argv, argv + argc, "-m", 8);
-    int c1 = getCmdOption(argv, argv + argc, "-c", 2);
-    int c2 = getCmdOption(argv, argv + argc, "-C", 2);
-    int v = getCmdOption(argv, argv + argc, "-V", 60);
-    int i = getCmdOption(argv, argv + argc, "-i", 1);
-    int s = getCmdOption(argv, argv + argc, "-s", 1);
+    int d = get_cmd_option(argv, argv + argc, "-D", 2);
+    int m = get_cmd_option(argv, argv + argc, "-m", 8);
+    int c1 = get_cmd_option(argv, argv + argc, "-c", 2);
+    int c2 = get_cmd_option(argv, argv + argc, "-C", 2);
+    int v = get_cmd_option(argv, argv + argc, "-V", 60);
+    int i = get_cmd_option(argv, argv + argc, "-i", 1);
+    int s = get_cmd_option(argv, argv + argc, "-s", 1);
 
     pso(d, m, c1, c2, v, i, s);
 }
