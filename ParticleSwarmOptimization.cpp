@@ -1,7 +1,21 @@
-﻿#include <iostream>
+﻿#define _USE_MATH_DEFINES
+
+#include <iostream>
 #include <omp.h>
+#include <math.h>
 
 using namespace std;
+
+double LOWER_BOUND = -32.768;
+double UPPER_BOUND = 32.768f;
+
+struct Particle
+{
+    double* position;
+    double* best_position;
+    double best_value = DBL_MAX;
+    double* velocity;
+};
 
 int getCmdOption(char** begin, char** end, const string& option, int defaultValue)
 {
@@ -16,6 +30,24 @@ int getCmdOption(char** begin, char** end, const string& option, int defaultValu
     return defaultValue;
 }
 
+double ackley(double positions[], int n)
+{
+    double firstLoopResult = 0.0;
+    for (int i = 0; i < n; i++)
+    {
+        firstLoopResult += positions[i] * positions[i];
+    }
+
+    double secondLoopResult = 0.0;
+    for (int i = 0; i < n; i++)
+    {
+        secondLoopResult += cos(2 * M_PI * positions[i]);
+    }
+
+    return -20 * exp(-0.2 * sqrt(1 / n * firstLoopResult)) - 
+        exp(1 / n * secondLoopResult) + 20 + DBL_EPSILON;
+}
+
 void pso(int d, int m, int c1, int c2, int v, int i, int s)
 {
     double start = omp_get_wtime();
@@ -26,6 +58,8 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s)
 
         // do przetrzymywania pozycji per próbka potrzebujemy listy list
         // długość zewnętrznej listy = ilość cząstek m
+        Particle* particles = new Particle[m];
+
         // długość wewnętrznej listy = ilość wymiarów d
         // np. [ [x1,y1,z1], [x2,y2,z2], [x3,y3,z3]]
 
@@ -34,19 +68,25 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s)
         // do przetrzymywania najlepszych wartości per próbka potrzebujemy tablicy (długość talicy = ilość cząstek m)
 
         // do przetrzymywania najlepszej wartości globalnej potrzebujemy jednej zmiennej
+        double best_general_value = DBL_MAX;
+        double* best_general_position = new double[d];
 
         // do przetrzymywania najlepszych współrzędnych potrzebujemy listy
         // długość listy = ilość wymiarów d
 
         // pętla do inicjalizacji pozycji i prędkości
-        for (int j = 0; j < m; j++)
+        for (int particle = 0; particle < m; particle++)
         {
+            particles[particle].position = new double[d];
+            particles[particle].velocity = new double[d];
+
             for (int jj = 0; jj < d; jj++)
             {
                 // initialize position x_id randomly within permissible range
-                // initialize velocity v_id randomly within permissible range
+                particles[particle].position[jj] = (UPPER_BOUND - LOWER_BOUND) * ((double) rand() / (double) RAND_MAX) + LOWER_BOUND;
 
-                // tutaj można też wybrać najlepszą pozycję globalną
+                // initialize velocity v_id randomly within permissible range
+                particles[particle].velocity[jj] = v * ((double)rand() / (double)RAND_MAX);
             }
         }
 
@@ -56,34 +96,45 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s)
             // ---------------------------------------------------------------------------------------------
             
             // 1 wersja
-            for (int j = 0; j < m; j++)
+            for (int particle = 0; particle < m; particle++)
             {
-                // obliczenie wartości funkcji
+                double value = ackley(particles[particle].position, d);
                 
-                // jeżeli wartość jest mniejsza niż p_best 
-                    // ustaw wartość jako p_best
-                    // jeżeli wartość jest mniejsza niż g_best  
-                        // ustaw wartość jako g_best                
+                if (value < particles[particle].best_value)
+                {
+                    particles[particle].best_value = value;
+                    particles[particle].best_position = particles[particle].position;
+
+                    if (value < best_general_value)
+                    {
+                        best_general_value = value;
+                        best_general_position = particles[particle].position;
+                    }
+                }             
             }
 
-            for (int j = 0; j < m; j++)
+            for (int particle = 0; particle < m; particle++)
             {
-                for (int jj = 0; jj < d; jj++)
+                for (int dimension = 0; dimension < d; dimension++)
                 {
-                    // rand musi być z zakresu (0,1)
+                    double rand_1 = ((double) rand() / (double) RAND_MAX);
+                    double rand_2 = ((double) rand() / (double) RAND_MAX);
                     
                     // update prędkości danej próbki per wymiar
-                    // v_id(k+1) = w * v_id(k) + c1 * rand_1(p_best_id - x_id) + c2 * rand2(g_best_d - x_id)
+                    // v_id(k+1) = w * v_id(k) + c1 * rand_1 * (p_best_id - x_id) + c2 * rand2 * (g_best_d - x_id)
+                    
+                    particles[particle].velocity[dimension] = w * particles[particle].velocity[dimension] + c1 * rand_1 * (particles[i].best_value - particles[particle].position[dimension]) + c2 * rand_2 * (best_general_value - particles[particle].position[dimension]);
                     
                     // update pozycji danej próbki per wymiar
                     // x_id(k+1) = x_id(k) + v_id(k+1)
+                    particles[particle].position[dimension] += particles[particle].velocity[dimension];
                 }
             }
 
             // ---------------------------------------------------------------------------------------------
             
             // 2 wersja
-            for (int j = 0; j < m; j++)
+            /*for (int j = 0; j < m; j++)
             {
                 for (int jj = 0; jj < d; jj++)
                 {
@@ -102,12 +153,12 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s)
                     // ustaw wartość jako p_best
                     // jeżeli wartość jest mniejsza niż g_best  
                         // ustaw wartość jako g_best 
-            }
+            }*/
 
             // ---------------------------------------------------------------------------------------------
 
             // increase counter
-            k = k + 1;
+            k++;
         }
         while (k <= i);
 
@@ -120,10 +171,21 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s)
 
     double end = omp_get_wtime();
     cout << "# " << end - start << endl;
+    cout << "VALUE: " << best_general_value << endl;
+    cout << "POSITION: (";
+
+    for (int dimension = 0; dimension < d; dimension++)
+    {
+        cout << best_general_position[dimension] << (dimension != d - 1 ? ", " : "");
+    }
+
+    cout << ")" << endl;
 }
 
 int main(int argc, char* argv[])
 {
+    srand(time(0));
+
     int d = getCmdOption(argv, argv + argc, "-D", 2);
     int m = getCmdOption(argv, argv + argc, "-m", 8);
     int c1 = getCmdOption(argv, argv + argc, "-c", 2);
