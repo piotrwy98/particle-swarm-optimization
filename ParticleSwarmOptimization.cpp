@@ -61,26 +61,12 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s, int threads)
 {
     double start = omp_get_wtime();
     double w = 0.5;
+    int k = 1;
+    Particle* particles = new Particle[m];
+    double best_general_value = DBL_MAX;
+    double* best_general_position = new double[d];
 
     #if SERIAL
-        // do przetrzymywania pozycji per próbka potrzebujemy listy list
-        // długość zewnętrznej listy = ilość cząstek m
-        Particle* particles = new Particle[m];
-
-        // długość wewnętrznej listy = ilość wymiarów d
-        // np. [ [x1,y1,z1], [x2,y2,z2], [x3,y3,z3]]
-
-        // do przetrzymywania najlepszych pozycji per próbka potrzebujemy takiej samej tablicy jak ta wyżej
-
-        // do przetrzymywania najlepszych wartości per próbka potrzebujemy tablicy (długość talicy = ilość cząstek m)
-
-        // do przetrzymywania najlepszej wartości globalnej potrzebujemy jednej zmiennej
-        double best_general_value = DBL_MAX;
-        double* best_general_position = new double[d];
-
-        // do przetrzymywania najlepszych współrzędnych potrzebujemy listy
-        // długość listy = ilość wymiarów d
-
         // pętla do inicjalizacji pozycji i prędkości
         for (int particle = 0; particle < m; particle++)
         {
@@ -97,7 +83,6 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s, int threads)
             }
         }
 
-        int k = 1;
         do
         {
             // ---------------------------------------------------------------------------------------------
@@ -175,10 +160,6 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s, int threads)
     #if PARALLEL
         omp_set_num_threads(threads);
 
-        Particle* particles = new Particle[m];
-        double best_general_value = DBL_MAX;
-        double* best_general_position = new double[d];
-
         #pragma omp parallel for
         for (int particle = 0; particle < m; particle++)
         {
@@ -192,8 +173,6 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s, int threads)
                 particles[particle].velocity[dimension] = v * ((double)rand() / (double)RAND_MAX);
             }
         }
-
-        int k = 1;
 
         // czy tutaj też omp? jest jakaś dyrektywa do WHILE czy należy zamienić na FOR?
         do
