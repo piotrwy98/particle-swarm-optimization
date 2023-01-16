@@ -192,6 +192,9 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s, int t)
     }
 
     cout << (d > 1 ? ")" : "") << endl << endl;
+
+    delete(particles);
+    delete(best_general_position);
 }
 
 int main(int argc, char* argv[])
