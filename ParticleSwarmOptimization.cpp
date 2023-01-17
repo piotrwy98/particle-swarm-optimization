@@ -61,10 +61,15 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s, int t)
 {
     d--;
     double start = omp_get_wtime();
+    double end = 0.0;
     double w = 0.5;
     Particle* particles = new Particle[m];
     double best_general_value = DBL_MAX;
     double* best_general_position = new double[d];
+    bool firstMeantime = false;
+    bool thirdMeantime = false;
+    bool fourthMeantime = false;
+    bool fifthMeantime = false;
 
     #if SERIAL
         // pętla do inicjalizacji pozycji i prędkości
@@ -81,13 +86,30 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s, int t)
                 // initialize velocity v_id randomly within permissible range
                 particles[particle].velocity[dimension] = v * ((double) rand() / (double) RAND_MAX);
             }
+
+            if (!firstMeantime)
+            {
+                firstMeantime = true;
+                end = omp_get_wtime();
+                cout << "MEANTIME #1:\t" << fixed << setprecision(15) << end - start << endl;
+            }
         }
+
+        end = omp_get_wtime();
+        cout << "MEANTIME #2:\t" << fixed << setprecision(15) << end - start << endl;
 
         for (int iteration = 0; iteration < i; iteration++)
         {
             for (int particle = 0; particle < m; particle++)
             {
                 double value = ackley(particles[particle].position, d);
+
+                if (!thirdMeantime)
+                {
+                    thirdMeantime = true;
+                    end = omp_get_wtime();
+                    cout << "MEANTIME #3:\t" << fixed << setprecision(15) << end - start << endl;
+                }
                 
                 if (value < particles[particle].best_value)
                 {
@@ -100,6 +122,13 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s, int t)
                         best_general_position = particles[particle].position;
                     }
                 }             
+            }
+
+            if (!fourthMeantime)
+            {
+                fourthMeantime = true;
+                end = omp_get_wtime();
+                cout << "MEANTIME #4:\t" << fixed << setprecision(15) << end - start << endl;
             }
 
             for (int particle = 0; particle < m; particle++)
@@ -121,6 +150,13 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s, int t)
                     particles[particle].position[dimension] += particles[particle].velocity[dimension];
                 }
             }
+
+            if (!fifthMeantime)
+            {
+                fifthMeantime = true;
+                end = omp_get_wtime();
+                cout << "MEANTIME #5:\t" << fixed << setprecision(15) << end - start << endl;
+            }
         }
     #endif
 
@@ -139,15 +175,32 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s, int t)
                 particles[particle].position[dimension] = (UPPER_BOUND - LOWER_BOUND) * ((double) rand() / (double) RAND_MAX) + LOWER_BOUND;
                 particles[particle].velocity[dimension] = v * ((double) rand() / (double) RAND_MAX);
             }
+
+            if (!firstMeantime)
+            {
+                firstMeantime = true;
+                end = omp_get_wtime();
+                cout << "MEANTIME #1:\t" << fixed << setprecision(15) << end - start << endl;
+            }
         }
 
-        #pragma omp parallel for
+        end = omp_get_wtime();
+        cout << "MEANTIME #2:\t" << fixed << setprecision(15) << end - start << endl;
+
+        #pragma omp parallel for shared(particles, best_general_value, best_general_position)
         for (int iteration = 0; iteration < i; iteration++)
         {
             #pragma omp parallel for shared(particles, best_general_value, best_general_position)
             for (int particle = 0; particle < m; particle++)
             {
                 double value = ackley(particles[particle].position, d);
+
+                if (!thirdMeantime)
+                {
+                    thirdMeantime = true;
+                    end = omp_get_wtime();
+                    cout << "MEANTIME #3:\t" << fixed << setprecision(15) << end - start << endl;
+                }
 
                 if (value < particles[particle].best_value)
                 {
@@ -160,6 +213,13 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s, int t)
                         best_general_position = particles[particle].position;
                     }
                 }
+            }
+
+            if (!fourthMeantime)
+            {
+                fourthMeantime = true;
+                end = omp_get_wtime();
+                cout << "MEANTIME #4:\t" << fixed << setprecision(15) << end - start << endl;
             }
 
             #pragma omp parallel for
@@ -177,21 +237,27 @@ void pso(int d, int m, int c1, int c2, int v, int i, int s, int t)
                     particles[particle].position[dimension] += particles[particle].velocity[dimension];
                 }
             }
+
+            if (!fifthMeantime)
+            {
+                fifthMeantime = true;
+                end = omp_get_wtime();
+                cout << "MEANTIME #5:\t" << fixed << setprecision(15) << end - start << endl;
+            }
         }
     #endif
 
-    double end = omp_get_wtime();
-
-    cout << "# TIME:     " << fixed << setprecision(15) << end - start << endl;
-    cout << "  VALUE:    " << best_general_value << endl;
-    cout << "  POSITION: " << (d > 1 ? "(" : "");
+    end = omp_get_wtime();
+    cout << "TOTAL TIME:\t" << fixed << setprecision(15) << end - start << endl;
+    cout << "VALUE:\t\t" << best_general_value << endl;
+    /*cout << "POSITION:\t" << (d > 1 ? "(" : "");
 
     for (int dimension = 0; dimension < d; dimension++)
     {
         cout << best_general_position[dimension] << (dimension != d - 1 ? ", " : "");
     }
 
-    cout << (d > 1 ? ")" : "") << endl << endl;
+    cout << (d > 1 ? ")" : "") << endl;*/
 
     delete(particles);
     delete(best_general_position);
